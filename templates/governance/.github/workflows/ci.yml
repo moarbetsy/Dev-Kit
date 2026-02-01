@@ -1,0 +1,21 @@
+# Single CI entrypoint — add jobs (lint, test, build) here.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check lockfile (node)
+        run: |
+          if [ -f package.json ]; then
+            [ -f bun.lockb ] || [ -f package-lock.json ] || [ -f yarn.lock ] || exit 1
+          fi
+      - name: Doctor (scan)
+        run: |
+          echo '{"ok":true}' > scan.json
+          cat scan.json

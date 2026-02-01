@@ -1,0 +1,56 @@
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Build
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Env
+.env
+.env.local
+.env.*.local
+.venv/
+venv/
+ENV/
+
+# Temp
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/

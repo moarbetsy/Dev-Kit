@@ -1,0 +1,42 @@
+# Dev-kit CI: gen-rules, doctor, scan, test suite, optional release dry-run
+name: kit
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_dry_run:
+        description: "Run release dry-run (WhatIf)"
+        required: false
+        default: false
+        type: boolean
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PowerShell 7
+        run: winget install -e --id Microsoft.PowerShell --silent --accept-source-agreements --accept-package-agreements
+      - name: Gen-rules
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./curated.ps1 gen-rules
+      - name: Doctor
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/doctor.ps1
+      - name: Scan
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/scan.ps1 | Out-File -Encoding utf8 scan.json; Get-Content scan.json
+      - name: Test (self-test)
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./curated.ps1 test
+      - name: Unit tests
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-tests.ps1
+  release-dry-run:
+    runs-on: windows-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_dry_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PowerShell 7
+        run: winget install -e --id Microsoft.PowerShell --silent --accept-source-agreements --accept-package-agreements
+      - name: Gen-rules
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./curated.ps1 gen-rules
+      - name: Release dry-run (WhatIf)
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./curated.ps1 release -ReleaseVersion 1.0.0 -WhatIf

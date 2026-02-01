@@ -1,0 +1,38 @@
+format = """
+$username\
+$hostname\
+$directory\
+$git_branch\
+$git_state\
+$git_status\
+$nodejs\
+$python\
+$rust\
+$golang\
+$package\
+$time\
+$character"""
+
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+
+[git_branch]
+symbol = " "
+
+[git_status]
+conflicted = " "
+up_to_date = " "
+untracked = " "
+ahead = " "
+behind = " "
+diverged = " "
+stashed = " "
+modified = " "
+staged = '[++\($count\)](green)'
+renamed = " "
+deleted = " "
+
+[time]
+format = " [$time](bold yellow) "
+disabled = false
