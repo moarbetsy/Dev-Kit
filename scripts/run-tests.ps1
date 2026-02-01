@@ -5,6 +5,9 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# Avoid Starship "[ERROR] - Under a 'dumb' terminal (TERM=dumb)" during test output (e.g. in Cursor/CI)
+if ($env:TERM -eq 'dumb') { $env:TERM = 'xterm' }
+
 $KitRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $TestsDir = Join-Path $KitRoot "tests"
 

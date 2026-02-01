@@ -68,6 +68,20 @@ function Show-Help {
   Write-Host "Docs: docs\COMMANDS.md, docs\AGENT_PROTOCOL.md, docs\EXTENDING.md"
 }
 
+function Invoke-PwshFile {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [string[]]$Args = @()
+  )
+  $pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
+  if ($pwsh) {
+    & $pwsh.Source -NoProfile -ExecutionPolicy Bypass -File $Path @Args
+  } else {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Path @Args
+  }
+}
+
 # Validate required args and show friendly usage
 function Require-ReleaseVersion {
   if (-not $PSBoundParameters.ContainsKey("ReleaseVersion") -or [string]::IsNullOrWhiteSpace($ReleaseVersion)) {
@@ -78,16 +92,18 @@ function Require-ReleaseVersion {
 }
 
 # Normalize new: first positional arg (no leading -) = project name
+# Script's $PSBoundParameters is not visible inside this function; pass ProjectName and SubArgs explicitly.
 function Get-NewProjectArgs {
-  if ($PSBoundParameters.ContainsKey("ProjectName") -and -not [string]::IsNullOrWhiteSpace($ProjectName)) {
-    return @("-Name", $ProjectName), $SubArgs
+  param([string]$ProjectNameValue, [string[]]$SubArgsValue)
+  if (-not [string]::IsNullOrWhiteSpace($ProjectNameValue)) {
+    return @("-Name", $ProjectNameValue), $SubArgsValue
   }
-  if ($SubArgs -and $SubArgs.Count -gt 0 -and $SubArgs[0] -notlike '-*') {
-    $name = $SubArgs[0]
-    $rest = if ($SubArgs.Count -gt 1) { $SubArgs[1..($SubArgs.Count - 1)] } else { @() }
+  if ($SubArgsValue -and $SubArgsValue.Count -gt 0 -and $SubArgsValue[0] -notlike '-*') {
+    $name = $SubArgsValue[0]
+    $rest = if ($SubArgsValue.Count -gt 1) { $SubArgsValue[1..($SubArgsValue.Count - 1)] } else { @() }
     return @("-Name", $name), $rest
   }
-  return $null, $SubArgs
+  return $null, $SubArgsValue
 }
 
 switch ($Command) {
@@ -98,7 +114,7 @@ switch ($Command) {
   "setup" {
     $setupArgs = @("-All")
     if ($SubArgs -and $SubArgs.Count -gt 0) { $setupArgs += $SubArgs }
-    & (Join-Path $ScriptsDir "setup.ps1") @setupArgs
+    Invoke-PwshFile (Join-Path $ScriptsDir "setup.ps1") $setupArgs
     exit 0
   }
   "bootstrap" {
@@ -109,11 +125,11 @@ switch ($Command) {
     if ($IncludeDefenderExclusions) { $bootArgs += "-IncludeDefenderExclusions" }
     if ($PSBoundParameters.ContainsKey("NewProjectName")) { $bootArgs += "-NewProjectName", $NewProjectName }
     if ($bootArgs.Count -eq 0) { $bootArgs = $SubArgs }
-    & (Join-Path $ScriptsDir "bootstrap.ps1") @bootArgs
+    Invoke-PwshFile (Join-Path $ScriptsDir "bootstrap.ps1") $bootArgs
     exit 0
   }
   "new" {
-    $newArgs, $rest = Get-NewProjectArgs
+    $newArgs, $rest = Get-NewProjectArgs -ProjectNameValue $ProjectName -SubArgsValue $SubArgs
     if (-not $newArgs) {
       Write-Host "Usage: curated.ps1 new -ProjectName <Name> [-Type generic|node|python] [-RunDoctor] [-NoGitHub] [-NoOpen]" -ForegroundColor Yellow
       Write-Host "   or: curated.ps1 new <Name> -Type node" -ForegroundColor Yellow
@@ -126,34 +142,40 @@ switch ($Command) {
     if ($NoOpen) { $newArgs += "-NoOpen" }
     if ($RunDoctor) { $newArgs += "-RunDoctor" }
     if ($FromGovernance) { $newArgs += "-FromGovernance" }
-    & (Join-Path $ScriptsDir "new-project.ps1") @newArgs @rest
+    $allArgs = @()
+    $allArgs += $newArgs
+    $allArgs += @($rest | Where-Object { $null -ne $_ -and $_ -ne '' })
+    Invoke-PwshFile (Join-Path $ScriptsDir "new-project.ps1") $allArgs
     exit 0
   }
   "gen-rules" {
-    & (Join-Path $ScriptsDir "gen-rules.ps1")
+    Invoke-PwshFile (Join-Path $ScriptsDir "gen-rules.ps1")
     exit 0
   }
   "doctor" {
-    & (Join-Path $ScriptsDir "doctor.ps1") @SubArgs
+    Invoke-PwshFile (Join-Path $ScriptsDir "doctor.ps1") $SubArgs
     exit 0
   }
   "governance" {
-    & (Join-Path $ScriptsDir "doctor.ps1") -GovernanceOnly
+    Invoke-PwshFile (Join-Path $ScriptsDir "doctor.ps1") @("-GovernanceOnly")
     exit 0
   }
   "scan" {
-    & (Join-Path $ScriptsDir "scan.ps1")
+    Invoke-PwshFile (Join-Path $ScriptsDir "scan.ps1")
     exit 0
   }
   "test" {
-    & (Join-Path $ScriptsDir "self-test.ps1")
+    Invoke-PwshFile (Join-Path $ScriptsDir "self-test.ps1")
     exit 0
   }
   "release" {
     Require-ReleaseVersion
     $relArgs = @("-ReleaseVersion", $ReleaseVersion)
     if ($WhatIf) { $relArgs += "-WhatIf" }
-    & (Join-Path $ScriptsDir "release.ps1") @relArgs @SubArgs
+    $allArgs = @()
+    $allArgs += $relArgs
+    $allArgs += $SubArgs
+    Invoke-PwshFile (Join-Path $ScriptsDir "release.ps1") $allArgs
     exit 0
   }
   default {

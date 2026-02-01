@@ -5,7 +5,8 @@ if (-not $env:DEVROOT -or $env:DEVROOT.Trim().Length -eq 0) {
 }
 function cdev { Set-Location $env:DEVROOT }
 
-if (Get-Command starship -ErrorAction SilentlyContinue) {
+# Skip Starship when TERM=dumb (Pester, CI, non-interactive) to avoid "[ERROR] - (starship::print): Under a 'dumb' terminal"
+if ($env:TERM -ne 'dumb' -and (Get-Command starship -ErrorAction SilentlyContinue)) {
   Invoke-Expression (& starship init powershell)
 }
 

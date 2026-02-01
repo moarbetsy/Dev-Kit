@@ -28,7 +28,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\curated.ps1 setup
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\curated.ps1 gen-rules
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\curated.ps1 test
 ```
-Then restart your terminal; global rules are in `%USERPROFILE%\.cursor\rules\` (Cursor loads them automatically). Set Windows Terminal font to Delugia Nerd Font; run `gh auth login` if needed.
+Then restart your terminal; global rules are in `%USERPROFILE%\.cursor\rules\` (Cursor loads them automatically). Set Windows Terminal font to Delugia Nerd Font (or JetBrainsMono Nerd Font if Delugia isn’t available in winget); run `gh auth login` if needed.
 
 ---
 
@@ -54,8 +54,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -Command "& { $f = Join-Path $env:TEMP '
 pwsh -NoProfile -ExecutionPolicy Bypass -Command "& { $f = Join-Path $env:TEMP 'bootstrap.ps1'; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/<OWNER>/<REPO>/main/scripts/bootstrap.ps1' -OutFile $f -UseBasicParsing; & pwsh -NoProfile -ExecutionPolicy Bypass -File $f -RepoUrl 'https://github.com/<OWNER>/<REPO>' -Ref main }"
 ```
 
-## After bootstrap
+## After one-liner bootstrap (repo at %USERPROFILE%\dev-kit)
+Only use these paths if you ran the one-liner bootstrap (Option A/B above), which clones the repo to `%USERPROFILE%\dev-kit`. If you cloned the repo elsewhere, run from that directory with `.\curated.ps1` instead (see "Entrypoint" above).
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\dev-kit\curated.ps1" test
 pwsh -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\dev-kit\curated.ps1" new -ProjectName MyApp -Type node -RunDoctor
 ```
+
+From repo root (any clone location): `pwsh -NoProfile -ExecutionPolicy Bypass -File .\curated.ps1 test`

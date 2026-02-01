@@ -190,4 +190,4 @@ Run-Setup
 Run-PostSetup
 
 Ok "Bootstrap done."
-Ok "Next: restart terminal; set Windows Terminal font to Delugia Nerd Font; Cursor global rules are in %USERPROFILE%\.cursor\rules\; run 'gh auth login' if needed."
+Ok "Next: restart terminal; set Windows Terminal font to Delugia Nerd Font (fallback: JetBrainsMono Nerd Font); Cursor global rules are in %USERPROFILE%\.cursor\rules\; run 'gh auth login' if needed."

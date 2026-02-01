@@ -38,7 +38,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\curated.ps1 release -ReleaseVers
 | Area | Content |
 |------|--------|
 | **Bootstrap** | Long Paths, Developer Mode, optional Defender exclusions, clone, setup; no mandatory restart |
-| **Setup** | PowerShell 7, Git, Starship, zoxide, eza, bat, fd, ripgrep, fzf, gh, Delugia Nerd Font, Bun, uv; profile, Git, SSH, Cursor rules |
+| **Setup** | PowerShell 7, Git, Starship, zoxide, eza, bat, fd, ripgrep, fzf, gh, Delugia Nerd Font (fallback: JetBrainsMono Nerd Font), Bun, uv; profile, Git, SSH, Cursor rules |
 | **Rules** | `rules-src/` → `curated.ps1 gen-rules` → `.cursor/rules/*.mdc` + `cursor/ai-rules.txt` |
 | **Project** | `curated.ps1 new` (generic/node/python); optional `-FromGovernance`, `-RunDoctor`, GitHub, open in Cursor |
 | **Governance** | `templates/governance/`: README, .gitignore, single CI workflow |
@@ -57,7 +57,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\curated.ps1 gen-rules
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\curated.ps1 test
 ```
 
-Restart the terminal; global rules are already in `%USERPROFILE%\.cursor\rules\` (Cursor loads them automatically). Set Windows Terminal font to Delugia Nerd Font; run `gh auth login` if you use GitHub.
+Restart the terminal; global rules are already in `%USERPROFILE%\.cursor\rules\` (Cursor loads them automatically). Set Windows Terminal font to Delugia Nerd Font (or JetBrainsMono Nerd Font if Delugia isn’t available in winget); run `gh auth login` if you use GitHub.
 
 **No clone (one-liner):** For a fresh machine where you don’t clone first, use bootstrap. Set `$env:DEVKIT_OWNER` and `$env:DEVKIT_REPO`, then run the one-liner from `docs/COMMANDS.md` (Option A). Or replace `<OWNER>` and `<REPO>` in the command in `docs/COMMANDS.md` (Option B). Bootstrap downloads the script, runs as admin (Long Paths, Dev Mode), clones the repo, then runs setup.
 

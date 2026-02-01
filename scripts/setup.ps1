@@ -29,6 +29,11 @@ $CursorRulesSource = Join-Path $RepoRoot "cursor\ai-rules.txt"
 function Assert-Command($name) {
   return [bool](Get-Command $name -ErrorAction SilentlyContinue)
 }
+function Test-IsAdmin {
+  $current = [Security.Principal.WindowsIdentity]::GetCurrent()
+  $principal = New-Object Security.Principal.WindowsPrincipal($current)
+  return $principal.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
+}
 function Ensure-Dir($path) {
   New-Item -ItemType Directory -Force -Path $path | Out-Null
 }
@@ -62,18 +67,53 @@ function Link-File($source, $dest) {
     Ok "Copied: $dest"
   }
 }
-function Winget-Install($id) {
+function Winget-IsInstalled($id) {
+  try {
+    $out = winget list --id $id -e 2>$null | Out-String
+  } catch { return $false }
+  return ($out -match [Regex]::Escape($id))
+}
+function Winget-IsAvailable($id) {
+  try {
+    $out = winget search --id $id -e --accept-source-agreements --disable-interactivity 2>$null | Out-String
+  } catch { return $false }
+  return ($out -match [Regex]::Escape($id))
+}
+function Winget-Install($id, [switch]$Optional) {
   if (-not (Assert-Command winget)) { throw "winget not found. Install 'App Installer' from Microsoft Store." }
-  $isInstalled = $false
-  try { $null = winget list --id $id -e; if ($LASTEXITCODE -eq 0) { $isInstalled = $true } } catch {}
-  if ($isInstalled) { Ok "$id already installed"; return }
-  Info "Installing: $id"
-  winget install -e --id $id --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
-  if ($LASTEXITCODE -ne 0) {
-    Warn "Silent failed for $id; retrying interactive."
-    winget install -e --id $id --accept-source-agreements --accept-package-agreements
+  if (Winget-IsInstalled $id) { Ok "$id already installed"; return $true }
+  if (-not (Winget-IsAvailable $id)) {
+    if ($Optional) { Warn "Package not found in winget sources (optional): $id" }
+    else { Warn "Package not found in winget sources: $id" }
+    return $false
   }
-  Ok "Installed: $id"
+  Info "Installing: $id"
+  winget install -e --id $id --silent --disable-interactivity --accept-source-agreements --accept-package-agreements 2>&1 | Out-Null
+  $ok = ($LASTEXITCODE -eq 0)
+  if (-not $ok) {
+    Warn "Silent failed for $id; retrying interactive."
+    winget install -e --id $id --accept-source-agreements --accept-package-agreements 2>&1 | Out-Null
+    $ok = ($LASTEXITCODE -eq 0)
+  }
+  if ($ok -and -not (Winget-IsInstalled $id)) {
+    $ok = $false
+  }
+  if ($ok) {
+    Ok "Installed: $id"
+    return $true
+  }
+  if ($Optional) { Warn "Install failed or unavailable (optional): $id" }
+  else { Warn "Install failed: $id (exit=$LASTEXITCODE)" }
+  return $false
+}
+function Install-NerdFont {
+  $preferred = "RyanLMcIntyre.DelugiaNerdFont"
+  $fallback = "DEVCOM.JetBrainsMonoNerdFont"
+  $ok = Winget-Install $preferred -Optional
+  if (-not $ok) {
+    Info "Trying fallback Nerd Font: $fallback"
+    $null = Winget-Install $fallback -Optional
+  }
 }
 function Ensure-DevRoot {
   Info "Ensuring Dev root: $DevRoot"
@@ -95,9 +135,10 @@ function Install-Apps {
   $packages = @(
     "Microsoft.PowerShell", "Git.Git", "Starship.Starship", "ajeetdsouza.zoxide",
     "eza-community.eza", "sharkdp.bat", "BurntSushi.ripgrep.MSVC", "junegunn.fzf",
-    "sharkdp.fd", "GitHub.cli", "RyanLMcIntyre.DelugiaNerdFont"
+    "sharkdp.fd", "GitHub.cli"
   )
-  foreach ($p in $packages) { Winget-Install $p }
+  foreach ($p in $packages) { $null = Winget-Install $p }
+  Install-NerdFont
 }
 function Install-LangTools {
   Info "Phase: Install Bun + uv"
@@ -162,6 +203,10 @@ function Configure-Git {
 }
 function Ensure-OpenSSHClientIfMissing {
   if (Assert-Command ssh-keygen) { return $true }
+  if (-not (Test-IsAdmin)) {
+    Warn "OpenSSH Client missing and PowerShell not elevated; re-run as Administrator to install."
+    return $false
+  }
   try { Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0 | Out-Null } catch { return $false }
   return (Assert-Command ssh-keygen)
 }
@@ -176,12 +221,25 @@ function Configure-SSH {
     ssh-keygen -t ed25519 -C $GitUserEmail -f $keyPath -N "" -q
     Ok "SSH key generated"
   } else { Ok "SSH key exists" }
-  try {
-    Get-Service ssh-agent | Set-Service -StartupType Automatic
-    Start-Service ssh-agent
-    ssh-add $keyPath | Out-Null
-    Ok "Key in ssh-agent"
-  } catch { Warn "ssh-agent setup failed." }
+  $agent = Get-Service ssh-agent -ErrorAction SilentlyContinue
+  if (-not $agent) {
+    Warn "ssh-agent service not available."
+  } else {
+    if (Test-IsAdmin) {
+      try { $agent | Set-Service -StartupType Automatic } catch { Warn "Could not set ssh-agent startup type." }
+      if ($agent.Status -ne "Running") {
+        try { Start-Service ssh-agent } catch { Warn "Could not start ssh-agent service." }
+      }
+    } elseif ($agent.Status -ne "Running") {
+      Warn "ssh-agent not running; re-run as Administrator to enable it."
+    }
+    $agent = Get-Service ssh-agent -ErrorAction SilentlyContinue
+    if ($agent -and $agent.Status -eq "Running") {
+      try { ssh-add $keyPath 2>$null | Out-Null; Ok "Key in ssh-agent" } catch { Warn "ssh-add failed." }
+    } else {
+      Warn "ssh-agent not running; skipped ssh-add."
+    }
+  }
   if (Test-Path "$keyPath.pub") { Get-Content "$keyPath.pub" | Set-Clipboard; Ok "Public key copied to clipboard" }
 }
 function Prepare-CursorRules {
